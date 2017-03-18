@@ -115,6 +115,7 @@ class PatchAnalysis:
 
     def patch_block(self, addr):
         print '%8x:' % addr,
+        case_addr = addr
         state = self.proj.factory.blank_state(addr=addr)
         state.regs.rbp = 0x100000
         orig_sv = state.memory.load(self.dispatch.state_var_loc, 4).reversed
@@ -134,12 +135,16 @@ class PatchAnalysis:
                 last_cmov_addr = addr
 
             state = self.single_step(state, addr)
+            if addr in [0x4042e7, 0x404084, 0x404299]:
+                state.regs.rax = claripy.BVS('dummy', 64)
 
             # Check if state variable is changed.
             curr_sv = state.memory.load(self.dispatch.state_var_loc, 4).reversed
             if not (orig_sv == curr_sv).is_true():
                 print '%8x' % addr,
                 if sym_is_const(curr_sv):
+                    if last_cmov_addr:
+                        print '!!',
                     print 'fixed %8x' % sym_const_val(curr_sv)
                     return self.patch_const_exit(addrs[-1], sym_const_val(curr_sv))
                 elif last_cmov_addr:
