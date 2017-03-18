@@ -114,7 +114,7 @@ class PatchAnalysis:
                 return self.patch_const_exit(addrs[-1], sym_const_val(curr_sv))
 
     def patch_block(self, addr):
-        print '-----------------', hex(addr)
+        print '%8x:' % addr,
         state = self.proj.factory.blank_state(addr=addr)
         state.regs.rbp = 0x100000
         orig_sv = state.memory.load(self.dispatch.state_var_loc, 4).reversed
@@ -124,6 +124,7 @@ class PatchAnalysis:
         last_cmov_addr = None
 
         if addr == 0x4046b9:
+            print
             return self.patch_const_exit(addrs[-1], 0x10dcdb4c)
         for addr in addrs:
 
@@ -137,19 +138,19 @@ class PatchAnalysis:
             # Check if state variable is changed.
             curr_sv = state.memory.load(self.dispatch.state_var_loc, 4).reversed
             if not (orig_sv == curr_sv).is_true():
-                print '\tChanged at %x' % addr
-                if last_cmov_addr:
-                    print '\tcond exit', map(hex, last_cmov_vals)
+                print '%8x' % addr,
+                if sym_is_const(curr_sv):
+                    print 'fixed %8x' % sym_const_val(curr_sv)
+                    return self.patch_const_exit(addrs[-1], sym_const_val(curr_sv))
+                elif last_cmov_addr:
+                    print 'cond  %8x %8x' % last_cmov_vals
                     return self.patch_cond_move(last_cmov_addr,
                                                 insns[last_cmov_addr].mnemonic[4:],
                                                 last_cmov_vals[0],
                                                 last_cmov_vals[1])
-                elif sym_is_const(curr_sv):
-                    print '\tconst exit', hex(sym_const_val(curr_sv))
-                    return self.patch_const_exit(addrs[-1], sym_const_val(curr_sv))
                 else:
                     raise Exception('cannot patch block %x' % addr)
-        print '\t', 'Cannot handle this block.'
+        print 'Cannot handle this block.'
         return []
 
     def patches(self):

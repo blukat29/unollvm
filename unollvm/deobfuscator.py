@@ -39,7 +39,8 @@ class Deobfuscator:
         patch = PatchAnalysis(self.proj, shape, dispatch)
         patches = patch.patches()
         if self.verbose:
-            print patches
+            print
+            #print patches
         self.patches[addr] = patches
         return patches
 
