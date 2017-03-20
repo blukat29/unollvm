@@ -88,7 +88,7 @@ class PatchAnalysis:
             raise Exception('cannot handle jumpkind "%s"' % jk)
 
     def analyze_case(self, case):
-        print '------ %8x' % case
+        print 'Block %8x' % case,
 
         state = self.orig_state(case)
         orig_sv = self.state_get_sv(state)
@@ -97,7 +97,20 @@ class PatchAnalysis:
         addr = case
         while addr != self.shape.collector_addr and (addr not in self.shape.leaf_addrs):
             addr, state = self.exec_block(info, addr, state)
-            print hex(addr), info
+            curr_sv = self.state_get_sv(state)
+            if not (orig_sv == curr_sv).is_true():
+                if sym_is_fixed(curr_sv):
+                    print 'fixed to %8x' % sym_get_val(curr_sv)
+                    return
+                elif info['cmov_info']:
+                    assert len(info['cmov_info']) == 1
+                    ci = info['cmov_info'][0]
+                    print 'cmov at %8x for %8x and %8x' % (ci['addr'], ci['ift'], ci['iff'])
+                    return
+                else:
+                    raise Exception('cannot find exit condition')
+        print 'no patch'
+        return
 
     def patches(self):
         p = []
