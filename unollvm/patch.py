@@ -87,6 +87,42 @@ class PatchAnalysis:
         else:
             raise Exception('cannot handle jumpkind "%s"' % jk)
 
+
+    def make_patch(self, at, asm):
+        bytes_, _ = self.ks.asm(asm, addr=at)
+        patch = []
+        for ofs, byte in enumerate(bytes_):
+            patch.append((at+ofs, byte))
+        return patch
+
+    def make_fixed_patch(self, at, sv_next):
+        target = self.dispatch.block_map[sv_next]
+        asm = 'jmp 0x%x' % target
+        return self.make_patch(at, asm)
+
+    def patch_fixed(self, last_block_addr, curr_sv):
+        sv_next = sym_get_val(curr_sv)
+        print 'fixed to %8x' % sv_next
+        last_block = self.proj.factory.block(last_block_addr)
+        at = last_block.instruction_addrs[-1]
+        return self.make_fixed_patch(at, sv_next)
+
+    def make_cond_patch(self, at, cc, sv_iff, sv_ift):
+        target_iff = self.dispatch.block_map[sv_iff]
+        target_ift = self.dispatch.block_map[sv_ift]
+        asm  = 'j%s 0x%x;' % (cc, target_ift)
+        asm += 'jmp 0x%x' % target_iff
+        return self.make_patch(at, asm)
+
+    def patch_cond(self, cmov_info):
+        addr = cmov_info['addr']
+        iff = cmov_info['iff']
+        ift = cmov_info['ift']
+        cmov_insn = self.disas(addr).mnemonic
+        assert cmov_insn.startswith('cmov')
+        print 'cmov at %8x for %8x and %8x' % (addr, iff, ift)
+        return self.make_cond_patch(addr, cmov_insn[4:], iff, ift)
+
     def analyze_case(self, case):
         print 'Block %8x' % case,
 
@@ -96,24 +132,24 @@ class PatchAnalysis:
         info = {}
         addr = case
         while addr != self.shape.collector_addr and (addr not in self.shape.leaf_addrs):
-            addr, state = self.exec_block(info, addr, state)
+            next_addr, state = self.exec_block(info, addr, state)
+
             curr_sv = self.state_get_sv(state)
             if not (orig_sv == curr_sv).is_true():
                 if sym_is_fixed(curr_sv):
-                    print 'fixed to %8x' % sym_get_val(curr_sv)
-                    return
+                    return self.patch_fixed(addr, curr_sv)
                 elif info['cmov_info']:
                     assert len(info['cmov_info']) == 1
-                    ci = info['cmov_info'][0]
-                    print 'cmov at %8x for %8x and %8x' % (ci['addr'], ci['ift'], ci['iff'])
-                    return
+                    return self.patch_cond(info['cmov_info'][0])
                 else:
                     raise Exception('cannot find exit condition')
+            else:
+                addr = next_addr
         print 'no patch'
-        return
+        return []
 
     def patches(self):
         p = []
         for case in self.dispatch.block_map.values():
-            self.analyze_case(case)
+            p += self.analyze_case(case)
         return p
