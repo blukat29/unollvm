@@ -60,11 +60,12 @@ class PatchAnalysis:
             iff = state_get_reg(state, regs[0])
             ift = state_get_reg(state, regs[1])
             if sym_is_fixed(iff) and sym_is_fixed(ift):
-                item = {'addr': addr,
-                        'iff': sym_get_val(iff),
-                        'ift': sym_get_val(ift)
-                }
-                info['cmov_info'] = info.get('cmov_info', []) + [item]
+                iff = sym_get_val(iff)
+                ift = sym_get_val(ift)
+                # TODO: Could be false positives.
+                if iff in self.dispatch.block_map and ift in self.dispatch.block_map:
+                    item = {'addr': addr, 'iff': iff, 'ift': ift}
+                    info['cmov_info'] = info.get('cmov_info', []) + [item]
 
     def exec_instrs(self, info, instruction_addrs, state):
         for addr in instruction_addrs:
@@ -81,6 +82,7 @@ class PatchAnalysis:
             return sym_get_val(state.regs.pc), state
         elif jk == 'Ijk_Call':
             state = self.exec_instrs(info, block.instruction_addrs[:-1], state)
+            state.regs.eax = claripy.BVS('retval_from_{:x}'.format(block.instruction_addrs[-1]), 32)
             return addr + block.size, state
         else:
             raise Exception('cannot handle jumpkind "%s"' % jk)
