@@ -148,8 +148,30 @@ class PatchAnalysis:
         print 'no patch'
         return []
 
+    def analyze_dispatcher(self):
+        addr = self.shape.func_addr
+        state = self.proj.factory.blank_state(addr=addr)
+        state.regs.esp = 0x100004
+        orig_sv = self.state_get_sv(state)
+
+        info = {}
+        # TODO revise this loop. Execute until dispatch, then look at the sv.
+        while addr != self.shape.collector_addr and (addr not in self.shape.leaf_addrs):
+            next_addr, state = self.exec_block(info, addr, state)
+
+            curr_sv = self.state_get_sv(state)
+            if not (orig_sv == curr_sv).is_true():
+                if sym_is_fixed(curr_sv):
+                    return self.patch_fixed(addr, curr_sv)
+                else:
+                    raise Exception('cannot find exit condition in dispatcher')
+            else:
+                addr = next_addr
+        raise Exception('did not patch dispatcher')
+
     def patches(self):
         p = []
+        p += self.analyze_dispatcher()
         for case in self.dispatch.block_map.values():
             p += self.analyze_case(case)
         return p
