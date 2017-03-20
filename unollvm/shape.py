@@ -37,10 +37,23 @@ class ShapeAnalysis:
         # Collector jumps to the dispatcher.
         return block_contains(self.prolog, successor)
 
+    def try_consolidate_collectors(self, addrs):
+        if len(addrs) != 2:
+            return addrs
+        x, y = map(self.func.get_node, addrs)
+        if block_contains(x, y):
+            return [addrs[1]]
+        elif block_contains(y, x):
+            return [addrs[0]]
+        else:
+            return addrs
+
     def analyze(self):
 
         # Find exactly one collector.
         collector_addrs = filter(self.is_collector, self.func.block_addrs)
+        if len(collector_addrs) > 1:
+            collector_addrs = self.try_consolidate_collectors(collector_addrs)
         if len(collector_addrs) != 1:
             self.is_ollvm_shape = False
             return
