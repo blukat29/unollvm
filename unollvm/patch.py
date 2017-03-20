@@ -4,9 +4,19 @@ import claripy
 import keystone
 import re
 
+def sym_is_fixed(sym):
+    return sym.op == 'BVV'
+
 def sym_get_val(sym):
     assert sym.op == 'BVV'
     return sym.args[0]
+
+def state_get_reg(state, operand):
+    assert re.match('(r|e)..?', operand)
+    if operand[-1] == 'd':
+        return getattr(state.regs, operand[:-1]).chop(32)[1]
+    else:
+        return getattr(state.regs, operand)
 
 class PatchAnalysis:
 
@@ -43,21 +53,34 @@ class PatchAnalysis:
         assert len(path.successors) == 1
         return path.successors[0].state
 
-    def exec_instrs(self, instruction_addrs, state):
+    def update_cmov_info(self, info, addr, state):
+        insn = self.disas(addr)
+        if insn.mnemonic.startswith('cmov'):
+            regs = map(str.strip, str(insn.op_str).split(','))
+            iff = state_get_reg(state, regs[0])
+            ift = state_get_reg(state, regs[1])
+            if sym_is_fixed(iff) and sym_is_fixed(ift):
+                item = {'addr': addr,
+                        'iff': sym_get_val(iff),
+                        'ift': sym_get_val(ift)
+                }
+                info['cmov_info'] = info.get('cmov_info', []) + [item]
+
+    def exec_instrs(self, info, instruction_addrs, state):
         for addr in instruction_addrs:
-            print self.disas(addr)
+            self.update_cmov_info(info, addr, state)
             state = self.single_step(state, addr)
         return state
 
-    def exec_block(self, addr, state):
+    def exec_block(self, info, addr, state):
         block = self.proj.factory.block(addr)
         jk = block.vex.jumpkind
         if jk == 'Ijk_Boring':
-            state = self.exec_instrs(block.instruction_addrs, state)
+            state = self.exec_instrs(info, block.instruction_addrs, state)
             # Assume we do not meet conditional branch.
             return sym_get_val(state.regs.pc), state
         elif jk == 'Ijk_Call':
-            state = self.exec_instrs(block.instruction_addrs[:-1], state)
+            state = self.exec_instrs(info, block.instruction_addrs[:-1], state)
             return addr + block.size, state
         else:
             raise Exception('cannot handle jumpkind "%s"' % jk)
@@ -68,10 +91,11 @@ class PatchAnalysis:
         state = self.orig_state(case)
         orig_sv = self.state_get_sv(state)
 
+        info = {}
         addr = case
         while addr != self.shape.collector_addr and (addr not in self.shape.leaf_addrs):
-            addr, state = self.exec_block(addr, state)
-            print hex(addr)
+            addr, state = self.exec_block(info, addr, state)
+            print hex(addr), info
 
     def patches(self):
         p = []
