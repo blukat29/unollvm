@@ -15,6 +15,18 @@ class PatchAnalysis:
         self.shape = shape
         self.dispatch = dispatch
         self.ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_64)
+        self.disas_cache = {}
+
+    def disas(self, addr):
+        if addr in self.disas_cache:
+            return self.disas_cache[addr]
+        else:
+            block = self.proj.factory.block(addr)
+            insns = block.capstone.insns
+            for item in insns:
+                insn = item.insn
+                self.disas_cache[insn.address] = insn
+            return self.disas_cache[addr]
 
     def orig_state(self, case):
         state = self.proj.factory.blank_state(addr=case)
@@ -33,6 +45,7 @@ class PatchAnalysis:
 
     def exec_instrs(self, instruction_addrs, state):
         for addr in instruction_addrs:
+            print self.disas(addr)
             state = self.single_step(state, addr)
         return state
 
