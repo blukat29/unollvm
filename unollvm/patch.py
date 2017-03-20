@@ -40,7 +40,7 @@ class PatchAnalysis:
 
     def orig_state(self, case):
         state = self.proj.factory.blank_state(addr=case)
-        state.regs.rbp = 0x100000
+        state.regs.ebp = 0x100000
         return state
 
     def state_get_sv(self, state):

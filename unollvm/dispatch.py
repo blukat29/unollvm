@@ -80,7 +80,7 @@ class DispatchAnalysis:
     def analyze(self):
 
         state = self.proj.factory.blank_state(addr=self.shape.dispatcher_addr)
-        state.regs.rbp = 0x100000
+        state.regs.ebp = 0x100000
 
         loc, sym = self.find_state_var(state.copy())
         state.memory.store(loc, sym.reversed)
