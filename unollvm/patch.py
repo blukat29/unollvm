@@ -40,7 +40,7 @@ class PatchAnalysis:
 
     def orig_state(self, case):
         state = self.proj.factory.blank_state(addr=case)
-        state.regs.ebp = 0x100000
+        state.regs.bp = 0x100000
         return state
 
     def state_get_sv(self, state):
@@ -151,7 +151,7 @@ class PatchAnalysis:
     def analyze_dispatcher(self):
         addr = self.shape.func_addr
         state = self.proj.factory.blank_state(addr=addr)
-        state.regs.esp = 0x100004
+        state.regs.sp = 0x100000 + self.proj.arch.bytes
         orig_sv = self.state_get_sv(state)
 
         info = {}
