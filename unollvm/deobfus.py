@@ -1,4 +1,5 @@
 import angr
+from .shape import Shape
 
 
 class Deobfuscator(object):
@@ -15,4 +16,9 @@ class Deobfuscator(object):
         return self.cfg_cache
 
     def analyze_func(self, addr):
-        print("Starting analysis for function {:x}".format(addr))
+        func = self.cfg().functions[addr]
+        print("Starting analysis for {}".format(repr(func)))
+
+        shape = Shape(func)
+        print(shape)
+
