@@ -40,10 +40,27 @@ class Shape(object):
         # Nodes without outgoing edges.
         return self.out_degree[self.func.get_node(addr)] == 0
 
+    def try_consolidate_collectors(self, collectors):
+        # Sometimes, a body block is directly connected to the collector
+        # without a jump instruction.
+        if len(collectors) != 2:
+            return None
+        addr0, addr1 = collectors
+        node0 = self.func.get_node(addr0)
+        node1 = self.func.get_node(addr1)
+        if block_contains(node0, node1):
+            return addr1
+        elif block_contains(node1, node0):
+            return addr0
+        else:
+            return None
+
     def analyze(self):
         collectors = filter(self.is_collector, self.func.block_addrs)
         if len(collectors) != 1:
-            return False
+            self.collector = self.try_consolidate_collectors(collectors)
+            if self.collector == None:
+                return False
         self.collector = collectors[0]
 
         # Dispatcher is the jump target of the collector.
@@ -61,6 +78,6 @@ class Shape(object):
         if self.is_ollvm:
             s += 'collector: {:x}\n'.format(self.collector)
             s += 'dispatcher: {:x}\n'.format(self.dispatcher)
-            exit_list = ','.join(map(hex, self.exits))
+            exit_list = ','.join(map(lambda n: '{:x}'.format(n), self.exits))
             s += 'exits: [{}]'.format(exit_list)
         return s

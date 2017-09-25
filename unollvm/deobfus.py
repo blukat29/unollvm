@@ -17,7 +17,7 @@ class Deobfuscator(object):
 
     def analyze_func(self, addr):
         func = self.cfg().functions[addr]
-        print("Starting analysis for {}".format(repr(func)))
+        print('Starting analysis for {}'.format(repr(func)))
 
         shape = Shape(func)
         print(shape)
