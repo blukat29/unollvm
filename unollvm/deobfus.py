@@ -1,5 +1,6 @@
 import angr
 from .shape import Shape
+from .control import Control
 
 
 class Deobfuscator(object):
@@ -21,4 +22,9 @@ class Deobfuscator(object):
 
         shape = Shape(func)
         print(shape)
+        if not shape.is_ollvm:
+            return
+
+        control = Control(self.proj, func, shape)
+        print(control)
 
