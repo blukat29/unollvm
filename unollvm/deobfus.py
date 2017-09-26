@@ -25,6 +25,6 @@ class Deobfuscator(object):
         if not shape.is_ollvm:
             return
 
-        control = Control(self.proj, func, shape)
-        print(control)
+        control = Control(self.proj, shape)
+        print(control.dump())
 
