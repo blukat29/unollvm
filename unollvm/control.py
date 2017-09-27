@@ -58,7 +58,10 @@ class Control(object):
         Checks if the form of the guard condition is simple comparison
         with a constant value.
         '''
-        ast = claripy.simplify(reduce(claripy.And, state.guards, claripy.true))
+        guards = list(state.guards)
+        # Assume the last guard condition alone can determine the switch value.
+        guards = guards[-1:]
+        ast = claripy.simplify(reduce(claripy.And, guards, claripy.true))
         if ast.op == '__eq__':
             x, y = ast.args
             if x.op == 'BVV':
