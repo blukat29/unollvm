@@ -61,7 +61,8 @@ class Shape(object):
             self.collector = self.try_consolidate_collectors(collectors)
             if self.collector == None:
                 return False
-        self.collector = collectors[0]
+        else:
+            self.collector = collectors[0]
 
         # Dispatcher is the jump target of the collector.
         collector_node = self.func.get_node(self.collector)
