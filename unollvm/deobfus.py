@@ -1,7 +1,9 @@
 import angr
-from .shape import Shape
+import keystone
+
 from .control import Control
 from .patch import Patch
+from .shape import Shape
 
 
 class Deobfuscator(object):
@@ -9,6 +11,7 @@ class Deobfuscator(object):
     def __init__(self, filename):
         load_options = {'auto_load_libs': False}
         self.proj = angr.Project(filename, load_options=load_options)
+        self.ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_64)
         self.cfg_cache = None
         self.patches = {}
 
@@ -29,5 +32,5 @@ class Deobfuscator(object):
         control = Control(self.proj, shape)
         print(control.dump())
 
-        patch = Patch(self.proj, shape, control)
+        patch = Patch(self.proj, shape, control, self.ks)
         print(patch)
