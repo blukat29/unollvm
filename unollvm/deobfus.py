@@ -22,7 +22,7 @@ class Deobfuscator(object):
         print('Starting analysis for {}'.format(repr(func)))
 
         shape = Shape(func)
-        print(shape)
+        print(shape.dump())
         if not shape.is_ollvm:
             return
 

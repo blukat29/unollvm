@@ -75,6 +75,9 @@ class Shape(object):
         return ("Shape({})".format(repr(self.func)))
 
     def __str__(self):
+        return self.__repr__()
+
+    def dump(self):
         s = 'is_ollvm: {}\n'.format(self.is_ollvm)
         if self.is_ollvm:
             s += 'collector: {:x}\n'.format(self.collector)
