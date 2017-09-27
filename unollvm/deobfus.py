@@ -1,6 +1,7 @@
 import angr
 from .shape import Shape
 from .control import Control
+from .patch import Patch
 
 
 class Deobfuscator(object):
@@ -28,3 +29,5 @@ class Deobfuscator(object):
         control = Control(self.proj, shape)
         print(control.dump())
 
+        patch = Patch(self.proj, shape, control)
+        print(patch)
