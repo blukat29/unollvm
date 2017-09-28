@@ -78,8 +78,16 @@ class Patch(object):
             if self.init_swval is not None:
                 break
 
+    def analyze_case(self, addr):
+        '''
+        Execute each switch-case block to recover control transfer.
+        '''
+        print hex(addr)
+
     def analyze(self):
         self.analyze_dispatcher()
+        for case in self.control.swmap.itervalues():
+            self.analyze_case(case)
         return False
 
     def __repr__(self):
