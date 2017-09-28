@@ -1,7 +1,20 @@
 import angr
+import capstone
+
+def _make_capstone_reg_to_name():
+    names = filter(lambda x: x.startswith('X86_REG_'), dir(capstone.x86_const))
+    result = {}
+    for name in names:
+        enum = getattr(capstone.x86_const, name)
+        result[enum] = name[8:].lower()
+    return result
+capstone_reg_to_name = _make_capstone_reg_to_name()
+
+def sym_is_val(sym):
+    return sym.op == 'BVV'
 
 def sym_val(sym):
-    assert sym.op == 'BVV'
+    assert sym_is_val(sym)
     return sym.args[0]
 
 class Patch(object):
@@ -11,23 +24,44 @@ class Patch(object):
         self.shape = shape
         self.control = control
         self.ks = ks
+        self.disas_cache = dict()
         self.patches = dict()
 
         self.analyze()
+
+    def disas(self, addr):
+        if addr not in self.disas_cache:
+            block = self.proj.factory.block(addr)
+            insns = block.capstone.insns
+            for angr_insn in insns:
+                cs_insn = angr_insn.insn
+                self.disas_cache[cs_insn.address] = cs_insn
+        return self.disas_cache[addr]
 
     def get_swvar(self, state):
         # Assume state variable is 4-byte integer type.
         return state.memory.load(self.control.swvar_addr, 4).reversed
 
+    def get_insn_operand(self, state, operand):
+        if operand.type == capstone.x86_const.X86_OP_REG:
+            reg_name = capstone_reg_to_name[operand.reg]
+            sym = getattr(state.regs, reg_name)
+            if sym_is_val(sym):
+                return sym_val(sym)
+            else:
+                return None
+        else:
+            raise Exception('Cannot handle operand type {}'.format(operand.type))
+
     def exec_insns(self, state, insn_addrs, on_insn):
         for addr in insn_addrs:
+            if on_insn:
+                if not on_insn(state, addr):
+                    break
             state.regs.pc = addr
             succ = state.step(num_inst=1)
             assert len(succ.successors) == 1
             state = succ[0]
-            if on_insn:
-                if not on_insn(state, addr):
-                    break
         return state
 
     def exec_block(self, state, addr, on_insn=None):
@@ -76,19 +110,43 @@ class Patch(object):
             if self.init_swval is not None:
                 break
 
-    def analyze_case(self, addr):
+    def analyze_case(self, case):
         '''
         Execute each switch-case block to recover control transfer.
         '''
-        state = self.proj.factory.blank_state(addr=addr)
+        state = self.proj.factory.blank_state(addr=case)
         state.regs.bp = self.control.default_bp()
 
         orig_swvar = self.get_swvar(state)
-        self.cmov_info = dict()
-        self.swvar_changed = False
+        self.cmov_info = []
+        def record_cmov(state, addr):
+            # Remember switch variable changes using cmovcc insturction.
+            insn = self.disas(addr)
+            if insn.mnemonic.startswith('cmov'):
+                f = self.get_insn_operand(state, insn.operands[0])
+                t = self.get_insn_operand(state, insn.operands[1])
+                # If two operands of cmovcc instruction belong to the
+                # switch values, then we assume that this cmovcc determines
+                # the next switch variable.
+                if f in self.control.swmap and t in self.control.swmap:
+                    self.cmov_info.append((addr, f, t))
+            return True
 
+        addr = case
         while addr != self.shape.collector and (addr not in self.shape.exits):
-            state, next_addr = self.exec_block(state, addr)
+            state, next_addr = self.exec_block(state, addr, record_cmov)
+
+            # If we sense that the switch variable is changed,
+            curr_swvar = self.get_swvar(state)
+            if not (orig_swvar == curr_swvar).is_true():
+                if sym_is_val(curr_swvar):
+                    print "Fixed target {:x}".format(sym_val(curr_swvar))
+                    return
+                elif len(self.cmov_info) == 1:
+                    print "Conditional {}".format(self.cmov_info)
+                    return
+                else:
+                    raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
             addr = next_addr
 
     def analyze(self):
