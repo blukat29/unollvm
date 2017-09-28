@@ -33,4 +33,4 @@ class Deobfuscator(object):
         print(control.dump())
 
         patch = Patch(self.proj, shape, control, self.ks)
-        print(patch)
+        print(patch.dump())
