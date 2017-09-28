@@ -12,7 +12,6 @@ class Patch(object):
         self.control = control
         self.ks = ks
         self.patches = dict()
-        self.init_swval = None
 
         self.analyze()
 
@@ -53,7 +52,6 @@ class Patch(object):
             return state, sym_val(state.regs.pc)
         else:
             raise Exception('Cannot handle jumpkind {}'.format(jk))
-        return
 
     def analyze_dispatcher(self):
         '''
@@ -63,9 +61,9 @@ class Patch(object):
         state = self.proj.factory.blank_state(addr=addr)
         # Assume that the function prologue starts with "push bp; mov bp, sp"
         state.regs.sp = self.control.default_bp() + self.proj.arch.bytes
-        orig_sv = self.get_swvar(state)
 
         # Run until we know initial concrete value of the switch variable.
+        self.init_swval = None
         def check_swvar(state, addr):
             var = self.get_swvar(state)
             if var.op == 'BVV':
@@ -82,7 +80,16 @@ class Patch(object):
         '''
         Execute each switch-case block to recover control transfer.
         '''
-        print hex(addr)
+        state = self.proj.factory.blank_state(addr=addr)
+        state.regs.bp = self.control.default_bp()
+
+        orig_swvar = self.get_swvar(state)
+        self.cmov_info = dict()
+        self.swvar_changed = False
+
+        while addr != self.shape.collector and (addr not in self.shape.exits):
+            state, next_addr = self.exec_block(state, addr)
+            addr = next_addr
 
     def analyze(self):
         self.analyze_dispatcher()
