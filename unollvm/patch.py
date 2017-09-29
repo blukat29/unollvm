@@ -133,7 +133,18 @@ class Patch(object):
             raise Exception('Cannot find initial switch value')
 
     def patch_uncond(self, block_addr, target):
-        print 'Block {:x}, target {:x}'.format(block_addr, target)
+        block = self.proj.factory.block(block_addr)
+        insn_addr = block.instruction_addrs[-1]
+
+        text = 'jmp 0x{:x}'.format(target)
+        code = self.asm(insn_addr, text)
+
+        last_insn = self.disas(insn_addr)
+        # Check if the last instruction of the block is jump to collector.
+        assert last_insn.mnemonic == 'jmp'
+        # Check if there is enough romm for the patch.
+        assert last_insn.size >= len(code)
+        self.make_patch(insn_addr, code)
 
     def analyze_case(self, case):
         '''
