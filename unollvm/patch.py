@@ -96,17 +96,14 @@ class Patch(object):
             raise Exception('Cannot handle jumpkind {}'.format(jk))
 
     def patch_dispatcher(self):
-        if self.init_swval is not None:
-            # Directly jump to the initial switch case block
-            target = self.control.swmap[self.init_swval]
-            insn_addr = self.shape.dispatcher
-            text = 'jmp 0x{:x}'.format(target)
-            code = self.asm(insn_addr, text)
-            # Check if there is enough room for the patch
-            assert len(code) <= self.proj.factory.block(self.shape.dispatcher).size
-            self.make_patch(insn_addr, code)
-        else:
-            raise Exception('Cannot find initial switch value')
+        # Directly jump to the initial switch case block
+        target = self.control.swmap[self.init_swval]
+        insn_addr = self.shape.dispatcher
+        text = 'jmp 0x{:x}'.format(target)
+        code = self.asm(insn_addr, text)
+        # Check if there is enough room for the patch
+        assert len(code) <= self.proj.factory.block(self.shape.dispatcher).size
+        self.make_patch(insn_addr, code)
 
     def analyze_dispatcher(self):
         '''
@@ -129,9 +126,14 @@ class Patch(object):
         while addr != self.shape.collector and (addr not in self.shape.exits):
             state, addr = self.exec_block(state, addr, check_swvar)
             if self.init_swval is not None:
-                break
+                self.patch_dispatcher()
+                return
 
-        self.patch_dispatcher()
+        if self.init_swval is None:
+            raise Exception('Cannot find initial switch value')
+
+    def patch_uncond(self, block_addr, target):
+        print 'Block {:x}, target {:x}'.format(block_addr, target)
 
     def analyze_case(self, case):
         '''
@@ -166,7 +168,8 @@ class Patch(object):
         curr_swvar = self.get_swvar(state)
         if not (orig_swvar == curr_swvar).is_true():
             if sym_is_val(curr_swvar):
-                return
+                target = self.control.swmap[sym_val(curr_swvar)]
+                self.patch_uncond(addr, target)
             elif len(self.cmov_info) == 1:
                 return
             else:
