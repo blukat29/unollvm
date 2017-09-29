@@ -156,24 +156,27 @@ class Patch(object):
             return True
 
         addr = case
-        while addr != self.shape.collector and (addr not in self.shape.exits):
+        while True:
             state, next_addr = self.exec_block(state, addr, record_cmov)
-
-            # If we sense that the switch variable is changed,
-            curr_swvar = self.get_swvar(state)
-            if not (orig_swvar == curr_swvar).is_true():
-                if sym_is_val(curr_swvar):
-                    return
-                elif len(self.cmov_info) == 1:
-                    return
-                else:
-                    raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
+            if next_addr == self.shape.collector:
+                break
             addr = next_addr
+
+        # If we sense that the switch variable is changed,
+        curr_swvar = self.get_swvar(state)
+        if not (orig_swvar == curr_swvar).is_true():
+            if sym_is_val(curr_swvar):
+                return
+            elif len(self.cmov_info) == 1:
+                return
+            else:
+                raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
 
     def analyze(self):
         self.analyze_dispatcher()
         for case in self.control.swmap.itervalues():
-            self.analyze_case(case)
+            if case not in self.shape.exits:
+                self.analyze_case(case)
         return False
 
     def __repr__(self):
