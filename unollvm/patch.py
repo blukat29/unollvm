@@ -146,6 +146,19 @@ class Patch(object):
         assert last_insn.size >= len(code)
         self.make_patch(insn_addr, code)
 
+    def patch_cond(self, addr, target):
+        cmov_insn = self.disas(addr)
+        assert cmov_insn.mnemonic[:4] == 'cmov'
+        cc = cmov_insn.mnemonic[4:]
+
+        text = 'j{} 0x{:x}'.format(cc, target)
+        code = self.asm(addr, text)
+        # Check if there is enough romm for the patch.
+        assert len(code) <= cmov_insn.size
+        # Fill the remaining bytes by nops.
+        code += [0x90]*(cmov_insn.size - len(code))
+        self.make_patch(addr, code)
+
     def analyze_case(self, case):
         '''
         Execute each switch-case block to recover control transfer.
@@ -182,6 +195,13 @@ class Patch(object):
                 target = self.control.swmap[sym_val(curr_swvar)]
                 self.patch_uncond(addr, target)
             elif len(self.cmov_info) == 1:
+                cmov_addr, f, t = self.cmov_info[0]
+                f_block = self.control.swmap[f]
+                t_block = self.control.swmap[t]
+                # Jump to true case when cmovcc condition is true.
+                self.patch_cond(cmov_addr, t_block)
+                # Jump to false case otherwise.
+                self.patch_uncond(addr, f_block)
                 return
             else:
                 raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
