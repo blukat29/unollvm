@@ -29,6 +29,14 @@ class Patch(object):
 
         self.analyze()
 
+    def asm(self, addr, text):
+        code, _ = self.ks.asm(text, addr=addr)
+        return code
+
+    def make_patch(self, addr, code):
+        print 'Patch at {:x} {}'.format(addr, code)
+        self.patches[addr] = code
+
     def disas(self, addr):
         if addr not in self.disas_cache:
             block = self.proj.factory.block(addr)
@@ -87,6 +95,19 @@ class Patch(object):
         else:
             raise Exception('Cannot handle jumpkind {}'.format(jk))
 
+    def patch_dispatcher(self):
+        if self.init_swval is not None:
+            # Directly jump to the initial switch case block
+            target = self.control.swmap[self.init_swval]
+            insn_addr = self.shape.dispatcher
+            text = 'jmp 0x{:x}'.format(target)
+            code = self.asm(insn_addr, text)
+            # Check if there is enough room for the patch
+            assert len(code) <= self.proj.factory.block(self.shape.dispatcher).size
+            self.make_patch(insn_addr, code)
+        else:
+            raise Exception('Cannot find initial switch value')
+
     def analyze_dispatcher(self):
         '''
         Execute prologue blocks until initial switch value is determined.
@@ -109,6 +130,8 @@ class Patch(object):
             state, addr = self.exec_block(state, addr, check_swvar)
             if self.init_swval is not None:
                 break
+
+        self.patch_dispatcher()
 
     def analyze_case(self, case):
         '''
@@ -140,10 +163,8 @@ class Patch(object):
             curr_swvar = self.get_swvar(state)
             if not (orig_swvar == curr_swvar).is_true():
                 if sym_is_val(curr_swvar):
-                    print "Fixed target {:x}".format(sym_val(curr_swvar))
                     return
                 elif len(self.cmov_info) == 1:
-                    print "Conditional {}".format(self.cmov_info)
                     return
                 else:
                     raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
