@@ -162,12 +162,22 @@ class Patch(object):
         assert cmov_insn.mnemonic[:4] == 'cmov'
         cc = cmov_insn.mnemonic[4:]
 
+        # Conditional jump instead of conditional move.
         text = 'j{} 0x{:x}'.format(cc, target)
         code = self.asm(addr, text)
-        # Check if there is enough romm for the patch.
-        # assert len(code) <= cmov_insn.size
+
+        # Check if there is enough room for the patch.
+        block = self.proj.factory.block(addr)
+        last_insn_addr = block.instruction_addrs[-1]
+        cavity_size = last_insn_addr - addr
+        assert len(code) <= cavity_size
+
         # Fill the remaining bytes by nops.
-        code += [0x90]*(cmov_insn.size - len(code))
+        # Assume last instructions of the conditial jump block looks like:
+        #   cmovcc __, __
+        #   mov [swvar_addr], __
+        #   jmp collector
+        code += [0x90]*(cavity_size- len(code))
         self.make_patch(addr, code)
 
     def analyze_case(self, case):
