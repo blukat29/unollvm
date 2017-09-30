@@ -165,7 +165,7 @@ class Patch(object):
         text = 'j{} 0x{:x}'.format(cc, target)
         code = self.asm(addr, text)
         # Check if there is enough romm for the patch.
-        assert len(code) <= cmov_insn.size
+        # assert len(code) <= cmov_insn.size
         # Fill the remaining bytes by nops.
         code += [0x90]*(cmov_insn.size - len(code))
         self.make_patch(addr, code)
