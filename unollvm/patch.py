@@ -1,4 +1,5 @@
 import angr
+import claripy
 import capstone
 
 def _make_capstone_reg_to_name():
@@ -92,6 +93,12 @@ class Patch(object):
             # control-flow-flattening obfuscated program.
             state = self.exec_insns(state, insn_addrs, on_insn)
             return state, sym_val(state.regs.pc)
+        elif jk == 'Ijk_Call':
+            # Do not execute call instruction.
+            # Instead put placeholder return value to eax register.
+            state = self.exec_insns(state, insn_addrs[:-1], on_insn)
+            state.regs.eax = claripy.BVS('retval_from_{:x}'.format(insn_addrs[-1]), 32)
+            return state, addr + block.size
         else:
             raise Exception('Cannot handle jumpkind {}'.format(jk))
 
