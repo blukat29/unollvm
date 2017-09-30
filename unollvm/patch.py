@@ -18,6 +18,21 @@ def sym_val(sym):
     assert sym_is_val(sym)
     return sym.args[0]
 
+def get_insn_operand(state, operand):
+    if operand.type == capstone.x86_const.X86_OP_REG:
+        reg_name = capstone_reg_to_name[operand.reg]
+        mask = (1 << 64) - 1
+        if reg_name[-1] == 'd':
+            reg_name = reg_name[:-1]
+            mask = (1 << 32) - 1
+        sym = getattr(state.regs, reg_name)
+        if sym_is_val(sym):
+            return sym_val(sym) & mask
+        else:
+            return None
+    else:
+        raise Exception('Cannot handle operand type {}'.format(operand.type))
+
 class Patch(object):
 
     def __init__(self, proj, shape, control, ks):
@@ -50,17 +65,6 @@ class Patch(object):
     def get_swvar(self, state):
         # Assume state variable is 4-byte integer type.
         return state.memory.load(self.control.swvar_addr, 4).reversed
-
-    def get_insn_operand(self, state, operand):
-        if operand.type == capstone.x86_const.X86_OP_REG:
-            reg_name = capstone_reg_to_name[operand.reg]
-            sym = getattr(state.regs, reg_name)
-            if sym_is_val(sym):
-                return sym_val(sym)
-            else:
-                return None
-        else:
-            raise Exception('Cannot handle operand type {}'.format(operand.type))
 
     def exec_insns(self, state, insn_addrs, on_insn):
         for addr in insn_addrs:
@@ -179,8 +183,8 @@ class Patch(object):
             # Remember switch variable changes using cmovcc insturction.
             insn = self.disas(addr)
             if insn.mnemonic.startswith('cmov'):
-                f = self.get_insn_operand(state, insn.operands[0])
-                t = self.get_insn_operand(state, insn.operands[1])
+                f = get_insn_operand(state, insn.operands[0])
+                t = get_insn_operand(state, insn.operands[1])
                 # If two operands of cmovcc instruction belong to the
                 # switch values, then we assume that this cmovcc determines
                 # the next switch variable.
