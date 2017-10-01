@@ -37,13 +37,12 @@ class Deobfuscator(object):
         self.log(shape.dump())
         if not shape.is_ollvm:
             return False
-        self.log('\n')
 
         control = Control(self.proj, shape)
-        self.log(control.dump() + '\n')
+        self.log(control.dump())
 
         patch = Patch(self.proj, shape, control, self.ks)
-        self.log(patch.dump() + '\n')
+        self.log(patch.dump())
 
         self.patches.update(patch.patches)
         return True

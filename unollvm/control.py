@@ -130,7 +130,6 @@ class Control(object):
         s = ''
         s += 'switch variable location: {:x} (bp {:x})\n'.format(
                 self.swvar_addr, self.swvar_offset())
-        maps_items = self.swmap.iteritems()
-        maps_list = ', '.join(map(lambda x: '{:x}:{:x}'.format(x[0], x[1]), maps_items))
-        s += 'switch values: {{{}}}'.format(maps_list)
+        for val, addr in self.swmap.items():
+            s += '{:x} = {:x}\n'.format(val, addr)
         return s

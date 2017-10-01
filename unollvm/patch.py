@@ -42,6 +42,7 @@ class Patch(object):
         self.ks = ks
         self.disas_cache = dict()
         self.patches = dict()
+        self.dump_info = []
 
         self.analyze()
 
@@ -214,6 +215,7 @@ class Patch(object):
             if sym_is_val(curr_swvar):
                 target = self.control.swmap[sym_val(curr_swvar)]
                 self.patch_uncond(addr, target)
+                self.dump_info.append(('uncond', case, target))
             elif len(self.cmov_info) == 1:
                 cmov_addr, f, t = self.cmov_info[0]
                 f_block = self.control.swmap[f]
@@ -222,6 +224,7 @@ class Patch(object):
                 self.patch_cond(cmov_addr, t_block)
                 # Jump to false case otherwise.
                 self.patch_uncond(addr, f_block)
+                self.dump_info.append(('cond', case, (t_block, f_block)))
                 return
             else:
                 raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
@@ -241,5 +244,10 @@ class Patch(object):
 
     def dump(self):
         s = ''
-        s += 'Initial switch variable: {:x}'.format(self.init_swval)
+        s += 'Initial switch variable: {:x}\n'.format(self.init_swval)
+        for kind, case, data in self.dump_info:
+            if kind == 'uncond':
+                s += 'Uncond {:x} -> {:x}\n'.format(case, data)
+            else:
+                s += 'Cond   {:x} -> {:x} or {:x}\n'.format(case, data[0], data[1])
         return s

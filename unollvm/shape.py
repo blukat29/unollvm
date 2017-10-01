@@ -83,5 +83,5 @@ class Shape(object):
             s += 'collector: {:x}\n'.format(self.collector)
             s += 'dispatcher: {:x}\n'.format(self.dispatcher)
             exit_list = ','.join(map(lambda n: '{:x}'.format(n), self.exits))
-            s += 'exits: [{}]'.format(exit_list)
+            s += 'exits: [{}]\n'.format(exit_list)
         return s
