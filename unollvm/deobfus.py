@@ -22,10 +22,13 @@ class Deobfuscator(object):
         self.cfg_cache = None
         self.patches = {}
 
-    def log(self, message, always=False):
-        if self.verbose or always:
-            self.logfile.write(message)
-            self.logfile.flush()
+    def log(self, message):
+        if self.verbose:
+            self._print(message)
+
+    def _print(self, message):
+        self.logfile.write(message)
+        self.logfile.flush()
 
     def cfg(self):
         if self.cfg_cache is None:
@@ -50,16 +53,16 @@ class Deobfuscator(object):
     def analyze_addr(self, addr):
         func = self.cfg().functions[addr]
         self.log('\n')
-        self.log('Patching {} ...'.format(repr(func)), True)
+        self._print('Patching {} ...'.format(repr(func)))
         self.log('\n')
 
-        if func.is_syscall: self.log(' skip (syscall).\n', True)
-        elif func.is_plt: self.log(' skip (plt).\n', True)
-        elif func.is_simprocedure: self.log(' skip (simprocedure).\n', True)
+        if func.is_syscall: self._print(' skip (syscall).\n')
+        elif func.is_plt: self._print(' skip (plt).\n')
+        elif func.is_simprocedure: self._print(' skip (simprocedure).\n')
         else:
             success = self.analyze_func(func)
-            if success: self.log(' done.\n', True)
-            else: self.log(' fail.\n', True)
+            if success: self._print(' done.\n')
+            else: self._print(' fail.\n')
 
     def analyze_name(self, name):
         symbol = self.proj.loader.main_object.get_symbol(name)
