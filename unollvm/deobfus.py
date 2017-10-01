@@ -3,10 +3,10 @@ import sys
 import angr
 import keystone
 
-from .binary import patch_elf
 from .control import Control
 from .patch import Patch
 from .shape import Shape
+from .util import patch_elf
 
 
 class Deobfuscator(object):
