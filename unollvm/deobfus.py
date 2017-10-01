@@ -22,6 +22,13 @@ class Deobfuscator(object):
             self.cfg_cache = self.proj.analyses.CFGFast()
         return self.cfg_cache
 
+    def analyze_addr(self, addr):
+        self.analyze_func(addr)
+
+    def analyze_name(self, name):
+        symbol = self.proj.loader.main_object.get_symbol(name)
+        self.analyze_func(symbol.linked_addr)
+
     def analyze_func(self, addr):
         func = self.cfg().functions[addr]
         print('Starting analysis for {}'.format(repr(func)))
