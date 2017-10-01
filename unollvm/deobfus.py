@@ -41,7 +41,7 @@ class Deobfuscator(object):
 
     def analyze_func(self, addr):
         func = self.cfg().functions[addr]
-        self.log('Starting analysis for {}'.format(repr(func)))
+        self.log('Analysis for {}'.format(repr(func)))
 
         shape = Shape(func)
         self.log(shape.dump())
@@ -54,6 +54,10 @@ class Deobfuscator(object):
         patch = Patch(self.proj, shape, control, self.ks)
         self.log(patch.dump())
         self.patches.update(patch.patches)
+
+    def analyze_all(self):
+        for addr in self.cfg().functions:
+            self.analyze_func(addr)
 
     def commit(self, output):
         patch_elf(self.filename, output, self.patches)
