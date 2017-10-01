@@ -33,7 +33,7 @@ if __name__ == '__main__':
     output = args.output.name
     args.output.close()
 
-    do = unollvm.Deobfuscator(input_)
+    do = unollvm.Deobfuscator(input_, verbose=args.verbose)
     for addr in args.addr:
         do.analyze_addr(int(addr, 16))
     for name in args.name:

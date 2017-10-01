@@ -50,7 +50,6 @@ class Patch(object):
         return code
 
     def make_patch(self, addr, code):
-        print 'Patch at {:x} {}'.format(addr, code)
         self.patches[addr] = code
 
     def disas(self, addr):

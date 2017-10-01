@@ -1,3 +1,5 @@
+import sys
+
 import angr
 import keystone
 
@@ -9,13 +11,21 @@ from .shape import Shape
 
 class Deobfuscator(object):
 
-    def __init__(self, filename):
-        load_options = {'auto_load_libs': False}
+    def __init__(self, filename, verbose=False, logfile=sys.stdout):
         self.filename = filename
+        self.verbose = verbose
+        self.logfile = logfile
+
+        load_options = {'auto_load_libs': False}
         self.proj = angr.Project(filename, load_options=load_options)
         self.ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_64)
         self.cfg_cache = None
         self.patches = {}
+
+    def log(self, message):
+        if self.verbose:
+            self.logfile.write(message)
+            self.logfile.write('\n')
 
     def cfg(self):
         if self.cfg_cache is None:
@@ -31,18 +41,18 @@ class Deobfuscator(object):
 
     def analyze_func(self, addr):
         func = self.cfg().functions[addr]
-        print('Starting analysis for {}'.format(repr(func)))
+        self.log('Starting analysis for {}'.format(repr(func)))
 
         shape = Shape(func)
-        print(shape.dump())
+        self.log(shape.dump())
         if not shape.is_ollvm:
             return
 
         control = Control(self.proj, shape)
-        print(control.dump())
+        self.log(control.dump())
 
         patch = Patch(self.proj, shape, control, self.ks)
-        print(patch.dump())
+        self.log(patch.dump())
         self.patches.update(patch.patches)
 
     def commit(self, output):
