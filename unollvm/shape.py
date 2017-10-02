@@ -1,4 +1,8 @@
+import logging
+
 import angr
+
+log = logging.getLogger('unollvm')
 
 def block_contains(outer, inner):
     a = outer.addr
@@ -63,12 +67,16 @@ class Shape(object):
                 return False
         else:
             self.collector = collectors[0]
+        log.info('  collector at {:x}'.format(self.collector))
 
         # Dispatcher is the jump target of the collector.
         collector_node = self.func.get_node(self.collector)
         self.dispatcher = collector_node.successors()[0].addr
+        log.info('  dispatcher at {:x}'.format(self.dispatcher))
 
         self.exits = filter(self.is_exit, self.func.block_addrs)
+        exit_list = ','.join(map(lambda n: '{:x}'.format(n), self.exits))
+        log.info('  exit nodes: [{}]'.format(exit_list))
         return True
 
     def __repr__(self):
@@ -76,12 +84,3 @@ class Shape(object):
 
     def __str__(self):
         return self.__repr__()
-
-    def dump(self):
-        s = 'is_ollvm: {}\n'.format(self.is_ollvm)
-        if self.is_ollvm:
-            s += 'collector: {:x}\n'.format(self.collector)
-            s += 'dispatcher: {:x}\n'.format(self.dispatcher)
-            exit_list = ','.join(map(lambda n: '{:x}'.format(n), self.exits))
-            s += 'exits: [{}]\n'.format(exit_list)
-        return s

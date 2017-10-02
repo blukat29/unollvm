@@ -1,6 +1,10 @@
+import logging
+
 import angr
-import claripy
 import capstone
+import claripy
+
+log = logging.getLogger('unollvm')
 
 def _make_capstone_reg_to_name():
     names = filter(lambda x: x.startswith('X86_REG_'), dir(capstone.x86_const))
@@ -42,7 +46,6 @@ class Patch(object):
         self.ks = ks
         self.disas_cache = dict()
         self.patches = dict()
-        self.dump_info = []
 
         self.analyze()
 
@@ -137,6 +140,8 @@ class Patch(object):
         while addr != self.shape.collector and (addr not in self.shape.exits):
             state, addr = self.exec_block(state, addr, check_swvar)
             if self.init_swval is not None:
+                log.info('  Initial switch variable is {:x} ({:x})'.format(
+                    self.init_swval, self.control.swmap[self.init_swval]))
                 self.patch_dispatcher()
                 return
 
@@ -214,17 +219,17 @@ class Patch(object):
         if not (orig_swvar == curr_swvar).is_true():
             if sym_is_val(curr_swvar):
                 target = self.control.swmap[sym_val(curr_swvar)]
+                log.info('    Uncond {:x} -> {:x}'.format(case, target))
                 self.patch_uncond(addr, target)
-                self.dump_info.append(('uncond', case, target))
             elif len(self.cmov_info) == 1:
                 cmov_addr, f, t = self.cmov_info[0]
                 f_block = self.control.swmap[f]
                 t_block = self.control.swmap[t]
+                log.info('    Cond   {:x} -> {:x} or {:x}'.format(case, f_block, t_block))
                 # Jump to true case when cmovcc condition is true.
                 self.patch_cond(cmov_addr, t_block)
                 # Jump to false case otherwise.
                 self.patch_uncond(addr, f_block)
-                self.dump_info.append(('cond', case, (t_block, f_block)))
                 return
             else:
                 raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
@@ -241,13 +246,3 @@ class Patch(object):
 
     def __str__(self):
         return self.__repr__()
-
-    def dump(self):
-        s = ''
-        s += 'Initial switch variable: {:x}\n'.format(self.init_swval)
-        for kind, case, data in self.dump_info:
-            if kind == 'uncond':
-                s += 'Uncond {:x} -> {:x}\n'.format(case, data)
-            else:
-                s += 'Cond   {:x} -> {:x} or {:x}\n'.format(case, data[0], data[1])
-        return s

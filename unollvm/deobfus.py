@@ -1,3 +1,4 @@
+import logging
 import sys
 
 import angr
@@ -8,6 +9,7 @@ from .patch import Patch
 from .shape import Shape
 from .util import patch_elf
 
+log = logging.getLogger('unollvm')
 
 class Deobfuscator(object):
 
@@ -15,6 +17,10 @@ class Deobfuscator(object):
         self.filename = filename
         self.verbose = verbose
         self.logfile = logfile
+        if self.verbose:
+            logging.getLogger('unollvm').setLevel(logging.INFO)
+        else:
+            logging.getLogger('unollvm').setLevel(logging.WARN)
 
         load_options = {'auto_load_libs': False}
         self.proj = angr.Project(filename, load_options=load_options)
@@ -37,32 +43,29 @@ class Deobfuscator(object):
 
     def analyze_func(self, func):
         shape = Shape(func)
-        self.log(shape.dump())
         if not shape.is_ollvm:
             return False
-
         control = Control(self.proj, shape)
-        self.log(control.dump())
-
         patch = Patch(self.proj, shape, control, self.ks)
-        self.log(patch.dump())
-
         self.patches.update(patch.patches)
         return True
 
     def analyze_addr(self, addr):
         func = self.cfg().functions[addr]
-        self.log('\n')
-        self._print('Patching {} ...'.format(repr(func)))
-        self.log('\n')
 
-        if func.is_syscall: self._print(' skip (syscall).\n')
-        elif func.is_plt: self._print(' skip (plt).\n')
-        elif func.is_simprocedure: self._print(' skip (simprocedure).\n')
+        if func.is_syscall:
+            log.info('Skipping {} (syscall)'.format(repr(func)))
+        elif func.is_plt:
+            log.info('Skipping {} (plt)'.format(repr(func)))
+        elif func.is_simprocedure:
+            log.info('Skipping {} (simprocedure)'.format(repr(func)))
         else:
+            log.warn('Patching {}..'.format(repr(func)))
             success = self.analyze_func(func)
-            if success: self._print(' done.\n')
-            else: self._print(' fail.\n')
+            if success:
+                log.warn('Done {}'.format(repr(func)))
+            else:
+                log.warn('Fail {}'.format(repr(func)))
 
     def analyze_name(self, name):
         symbol = self.proj.loader.main_object.get_symbol(name)

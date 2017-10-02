@@ -1,9 +1,11 @@
+import logging
 import operator
 import re
 
 import angr
 import claripy
 
+log = logging.getLogger('unollvm')
 
 class Control(object):
 
@@ -88,6 +90,7 @@ class Control(object):
         # Stop if we can determine the switch value that leads to current node.
         if self.is_swval_constant(state):
             value = state.se.eval(self.swvar_sym)
+            log.info('    {:x} -> {:x}'.format(value, state.addr))
             return dict({value: state.addr})
 
         # Otherwise keep exploring the successors
@@ -114,6 +117,8 @@ class Control(object):
 
         if not self.find_swvar(state):
             return False
+        log.info('  swith variable at {:x} (bp {:x})'.format(
+            self.swvar_addr, self.swvar_offset()))
 
         self.swvar_sym = claripy.BVS(self.swvar_name(), 32)
         state.memory.store(self.swvar_addr, self.swvar_sym.reversed)
@@ -125,11 +130,3 @@ class Control(object):
 
     def __str__(self):
         return self.__repr__()
-
-    def dump(self):
-        s = ''
-        s += 'switch variable location: {:x} (bp {:x})\n'.format(
-                self.swvar_addr, self.swvar_offset())
-        for val, addr in self.swmap.items():
-            s += '{:x} = {:x}\n'.format(val, addr)
-        return s
