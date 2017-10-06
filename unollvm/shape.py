@@ -65,7 +65,12 @@ class Shape(object):
     def is_exit(self, addr):
         # Nodes without outgoing edges.
         block = self.non_call_bbl(addr)
-        return self.out_degree[block.codenode] == 0
+        node = block.codenode
+        if node in self.out_degree:
+            return self.out_degree[node] == 0
+        else:
+            log.warn('    Assuming node {:x} is an exit node.'.format(node.addr))
+            return True
 
     def try_consolidate_collectors(self, collectors):
         # Sometimes, a body block is directly connected to the collector
