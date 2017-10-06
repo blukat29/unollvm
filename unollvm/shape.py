@@ -13,9 +13,10 @@ def block_contains(outer, inner):
 
 class Shape(object):
 
-    def __init__(self, func):
+    def __init__(self, proj, func):
+        self.proj = proj
         self.func = func
-        self.prolog = self.func.get_node(func.addr)
+        self.prolog_cache = None
         self.out_degree = self.func.graph.out_degree()
 
         self.is_ollvm = False
@@ -24,6 +25,21 @@ class Shape(object):
         self.exits = []
 
         self.is_ollvm = self.analyze()
+
+    def prolog(self):
+        '''
+        The first basic block of the function
+        Function call does not split the block.
+        '''
+        if not self.prolog_cache:
+            block = self.proj.factory.block(self.func.addr)
+            while True:
+                if block.vex.jumpkind == 'Ijk_Boring':
+                    self.prolog_cache = block
+                    break
+                else:
+                    block = self.proj.factory.block(block.addr + block.size)
+        return self.prolog_cache
 
     def is_collector(self, addr):
         ss = self.func.get_node(addr).successors()
@@ -38,7 +54,7 @@ class Shape(object):
             return False
 
         # Collector jumps back into the prolog.
-        return block_contains(self.prolog, s)
+        return block_contains(self.prolog(), s)
 
     def is_exit(self, addr):
         # Nodes without outgoing edges.

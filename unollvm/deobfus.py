@@ -42,7 +42,7 @@ class Deobfuscator(object):
         return self.cfg_cache
 
     def analyze_func(self, func):
-        shape = Shape(func)
+        shape = Shape(self.proj, func)
         if not shape.is_ollvm:
             return False
         control = Control(self.proj, shape)
