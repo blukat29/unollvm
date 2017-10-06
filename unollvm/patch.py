@@ -54,7 +54,15 @@ class Patch(object):
         return code
 
     def make_patch(self, addr, code):
-        self.patches[addr] = code
+        if addr in self.patches:
+            old = self.patches[addr]
+            merged = [0]*max(len(old), len(code))
+            merged[:len(old)] = old
+            # Overwrite the patch
+            merged[:len(code)] = code
+            self.patches[addr] = merged
+        else:
+            self.patches[addr] = code
 
     def disas(self, addr):
         if addr not in self.disas_cache:
@@ -234,7 +242,18 @@ class Patch(object):
             else:
                 raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
 
+    def mute_block(self, addr):
+        block = self.proj.factory.block(addr)
+        code = [0x90]*block.size
+        self.make_patch(block.addr, code)
+
+    def mute_dispatcher(self):
+        for comparator in self.control.cmps:
+            self.mute_block(comparator)
+        self.mute_block(self.shape.collector)
+
     def analyze(self):
+        self.mute_dispatcher()
         self.analyze_dispatcher()
         for case in self.control.swmap.itervalues():
             if case not in self.shape.exits:

@@ -15,6 +15,7 @@ class Control(object):
         self.swvar_addr = None
         self.swvar_sym = None
         self.swmap = dict()
+        self.cmps = set()
 
         self.success = False
         self.success = self.analyze()
@@ -96,6 +97,7 @@ class Control(object):
         # Otherwise keep exploring the successors
         succ = state.step()
         succ = list(succ.successors)
+        self.cmps.add(state.addr)
 
         # Stop exploring at a dead-end.
         if len(succ) == 1 and self.is_bottom(succ[0]):
