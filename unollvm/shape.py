@@ -26,19 +26,25 @@ class Shape(object):
 
         self.is_ollvm = self.analyze()
 
+    def non_call_bbl(self, addr):
+        '''
+        The first basic block that follows `addr` with jumpkind Ijk_Boring.
+        '''
+        block = self.proj.factory.block(addr)
+        while True:
+            jk = block.vex.jumpkind
+            if jk == 'Ijk_Boring' or jk == 'Ijk_Ret':
+                return block
+            elif jk == 'Ijk_Call':
+                block = self.proj.factory.block(block.addr + block.size)
+
     def prolog(self):
         '''
         The first basic block of the function
         Function call does not split the block.
         '''
         if not self.prolog_cache:
-            block = self.proj.factory.block(self.func.addr)
-            while True:
-                if block.vex.jumpkind == 'Ijk_Boring':
-                    self.prolog_cache = block
-                    break
-                else:
-                    block = self.proj.factory.block(block.addr + block.size)
+            self.prolog_cache = self.non_call_bbl(self.func.addr)
         return self.prolog_cache
 
     def is_collector(self, addr):
@@ -58,7 +64,8 @@ class Shape(object):
 
     def is_exit(self, addr):
         # Nodes without outgoing edges.
-        return self.out_degree[self.func.get_node(addr)] == 0
+        block = self.non_call_bbl(addr)
+        return self.out_degree[block.codenode] == 0
 
     def try_consolidate_collectors(self, collectors):
         # Sometimes, a body block is directly connected to the collector
