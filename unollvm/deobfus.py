@@ -28,6 +28,12 @@ class Deobfuscator(object):
         self.cfg_cache = None
         self.patches = {}
 
+    def pie_base(self):
+        if self.proj.loader.main_object.pic:
+            return self.proj.loader.main_object.mapped_base
+        else:
+            return 0
+
     def cfg(self):
         if self.cfg_cache is None:
             self.cfg_cache = self.proj.analyses.CFGFast()
@@ -68,4 +74,4 @@ class Deobfuscator(object):
             self.analyze_addr(addr)
 
     def commit(self, output):
-        patch_elf(self.filename, output, self.patches)
+        patch_elf(self.filename, output, self.patches, self.pie_base())
