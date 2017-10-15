@@ -28,14 +28,6 @@ class Deobfuscator(object):
         self.cfg_cache = None
         self.patches = {}
 
-    def log(self, message):
-        if self.verbose:
-            self._print(message)
-
-    def _print(self, message):
-        self.logfile.write(message)
-        self.logfile.flush()
-
     def cfg(self):
         if self.cfg_cache is None:
             self.cfg_cache = self.proj.analyses.CFGFast()
