@@ -36,7 +36,9 @@ class Deobfuscator(object):
 
     def cfg(self):
         if self.cfg_cache is None:
-            self.cfg_cache = self.proj.analyses.CFGFast()
+            log.warn('Starting CFG analysis')
+            self.cfg_cache = self.proj.analyses.CFGFast(show_progressbar=True)
+            log.warn('Completed CFG analysis')
         return self.cfg_cache
 
     def analyze_func(self, func):
