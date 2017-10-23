@@ -3,7 +3,7 @@ LLVM_ROOT ?= /usr
 CLANG = $(LLVM_ROOT)/bin/clang
 CLANG_LIB = $(LLVM_ROOT)/lib/clang/*
 
-CFLAGS = -I$(CLANG_LIB)/include
+CFLAGS = -I$(CLANG_LIB)/include -O3
 
 SRCS = $(wildcard *.c)
 BINS = $(SRCS:.c=.fla)

@@ -5,8 +5,8 @@ int go(int n)
     else return n * n;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    go(1);
+    go(argc);
     return 0;
 }
