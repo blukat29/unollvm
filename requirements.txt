@@ -1,12 +1,15 @@
+amqp==2.2.2
 ana==0.3
 angr==7.7.9.21
 archinfo==7.7.9.14
 asn1crypto==0.23.0
 bcrypt==3.1.3
+billiard==3.5.0.3
 bintrees==2.0.7
 bitstring==3.1.5
 cachetools==2.0.1
 capstone==3.0.4
+celery==4.1.0
 certifi==2017.7.27.1
 cffi==1.11.0
 chardet==3.0.4
@@ -25,6 +28,7 @@ intervaltree==2.1.0
 ipaddress==1.0.18
 Jinja2==2.9.6
 keystone-engine==0.9.1.post3
+kombu==4.1.0
 Mako==1.0.7
 MarkupSafe==1.0
 mulpyplexer==0.8
@@ -40,6 +44,7 @@ pwntools==3.9.1
 py==1.4.34
 pyasn1==0.3.6
 pycparser==2.18
+pydotplus==2.0.2
 pyelftools==0.24
 pygit==0.1
 Pygments==2.2.0
@@ -49,7 +54,9 @@ pyparsing==2.2.0
 pyserial==3.4
 PySocks==1.6.7
 python-dateutil==2.6.1
+pytz==2017.3
 pyvex==7.7.9.14
+redis==2.10.6
 requests==2.18.4
 ROPGadget==5.4
 rpyc==3.4.4
@@ -58,6 +65,7 @@ sortedcontainers==1.5.7
 tox==2.9.0
 unicorn==1.0.1
 urllib3==1.22
+vine==1.1.4
 virtualenv==15.1.0
 Werkzeug==0.12.2
 z3-solver==4.5.1.0.post2
