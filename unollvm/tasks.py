@@ -8,6 +8,7 @@ import zlib
 
 import angr
 import bson
+import celery
 import keystone
 import pymongo
 
@@ -16,7 +17,8 @@ import unollvm
 from .celery import app
 
 db = pymongo.MongoClient('mongodb://localhost:27017', connect=False).unollvm
-logging.getLogger('unollvm').setLevel(logging.INFO)
+log = logging.getLogger('unollvm')
+#logging.getLogger('unollvm').setLevel(logging.INFO)
 
 binary_dir = '/tmp/uo/'
 
@@ -99,37 +101,37 @@ def _unflatten(binary, function):
     else:
         return {}
 
-@app.task
-def unflatten(binary_id, func_addr):
+
+def unflatten(binary_id, func_addr=None, func_name=None):
     binary = db.binary.find_one({'sha256': binary_id})
     if not binary:
         raise ValueError('Cannot find binary {}'.format(binary_id))
 
-    function = db.function.find_one({
-        'binary': binary_id,
-        'addr': str(func_addr)
-    })
-    if not function:
-        raise ValueError('Cannot find function 0x{:x} of binary {}'
-                .format(func_addr, binary_id))
+    if func_addr:
+        key = {'binary': binary_id, 'addr': str(func_addr)}
+    elif func_name:
+        key = {'binary': binary_id, 'name': func_name}
+    else:
+        raise ValueError('Must provide either function address or name')
 
+    function = db.function.find_one(key)
+    if not function:
+        raise ValueError('Cannot find function 0x{:x} of binary {}'.format(func_addr, binary_id))
+
+    log.info('Unflatten binary {} function {} ({})'.format(
+        binary_id, function['name'], hex(int(function['addr']))))
     patches = _unflatten(binary, function)
 
-    key = {
-        'binary': binary_id,
-        'addr': str(func_addr),
-    }
-    val = {
-        'binary': binary_id,
-        'addr': str(func_addr),
-        'patch': json.dumps(patches)
-    }
+    key = {'binary': binary_id, 'addr': function['addr']}
+    val = key.copy()
+    val.update({'patch': json.dumps(patches)})
     db.patch.update(key, val, upsert=True)
     return patches
 
+@app.task
+def unflatten_addr(binary_id, func_addr):
+    return unflatten(binary_id, func_addr=func_addr)
 
-if __name__ == '__main__':
-    h = upload_binary('./example/call.fla')
-    cfg(h)
-    unflatten('ebd5f40261e08b5bf121e47c7b8055fd578f399d454fe72f137cea75b9bdd9d7', 4195600)
-    exit()
+@app.task
+def unflatten_name(binary_id, func_name):
+    return unflatten(binary_id, func_name=func_name)
