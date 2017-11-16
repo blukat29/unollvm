@@ -10,6 +10,7 @@ import angr
 import keystone
 import bson
 import unollvm
+import json
 from celery import Celery
 from pymongo import MongoClient
 
@@ -80,7 +81,6 @@ def cfg(binary_id):
             db.function.update(key, val, upsert=True)
             addrs.append(addr)
 
-    os.unlink(filename)
     return addr
 
 def _unflatten(binary, function):
@@ -96,7 +96,6 @@ def _unflatten(binary, function):
         ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_64)
         patch = unollvm.patch.Patch(proj, shape, control, ks)
 
-    os.unlink(filename)
     return patch.patches
 
 @app.task
@@ -113,7 +112,18 @@ def unflatten(binary_id, func_addr):
         raise ValueError('Cannot find function 0x{:x} of binary {}'
                 .format(func_addr, binary_id))
 
-    return _unflatten(binary, function)
+    patches = _unflatten(binary, function)
+
+    key = {
+        'binary': binary_id,
+        'addr': str(func_addr),
+    }
+    val = {
+        'binary': binary_id,
+        'addr': str(func_addr),
+        'patch': json.dumps(patches)
+    }
+    db.patch.update(key, val, upsert=True)
 
 
 if __name__ == '__main__':
