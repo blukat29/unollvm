@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import hashlib
 import json
 import logging
@@ -118,8 +119,8 @@ def unflatten(binary_id, func_addr=None, func_name=None):
     if not function:
         raise ValueError('Cannot find function 0x{:x} of binary {}'.format(func_addr, binary_id))
 
-    log.info('Unflatten binary {} function {} ({})'.format(
-        binary_id, function['name'], hex(int(function['addr']))))
+    log.warn('Unflatten binary {} function {} ({})'.format(
+        binary_id[:7], function['name'], hex(int(function['addr']))))
     patches = _unflatten(binary, function)
 
     key = {'binary': binary_id, 'addr': function['addr']}
@@ -135,3 +136,13 @@ def unflatten_addr(binary_id, func_addr):
 @app.task
 def unflatten_name(binary_id, func_name):
     return unflatten(binary_id, func_name=func_name)
+
+@app.task
+def collect_patches(patches):
+    return patches
+
+@app.task
+def unflatten_all(addrs, binary_id):
+    jobs = (unflatten_addr.s(binary_id, addr) for addr in addrs)
+    chord = celery.chord(jobs)(collect_patches.s())
+    return chord.id

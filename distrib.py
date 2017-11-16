@@ -6,6 +6,7 @@ import celery
 
 import unollvm
 from unollvm import tasks
+from unollvm.celery import app
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -38,6 +39,14 @@ if __name__ == '__main__':
 
     if args.all:
         h = tasks.upload_binary(input_)
+        chain = celery.chain(
+                tasks.cfg.s(h),
+                tasks.unflatten_all.s(h)
+        )
+        r = chain()
+        chord_id = r.get()
+        r = app.AsyncResult(chord_id).get()
+
     else:
         h = tasks.upload_binary(input_)
         addr_args = map(lambda a: (h, int(a, 16)), args.addr)
@@ -50,5 +59,7 @@ if __name__ == '__main__':
                     tasks.unflatten_name.starmap(name_args)
                 )
         )
-        r = chain().get()
+        r = chain()
+        addr_res, name_res = r.get()
+        r = addr_res + name_res
         print r
