@@ -1,21 +1,21 @@
 import hashlib
+import json
 import logging
-import zlib
 import os
 import pickle
 import tempfile
-from os import path
+import zlib
 
 import angr
-import keystone
 import bson
-import unollvm
-import json
-from celery import Celery
-from pymongo import MongoClient
+import keystone
+import pymongo
 
-app = Celery('unollvm', backend='redis://localhost', broker='redis://localhost')
-db = MongoClient('mongodb://localhost:27017').unollvm
+import unollvm
+
+from .celery import app
+
+db = pymongo.MongoClient('mongodb://localhost:27017', connect=False).unollvm
 logging.getLogger('unollvm').setLevel(logging.INFO)
 
 binary_dir = '/tmp/uo/'
@@ -35,7 +35,7 @@ def upload_binary(filename):
     return sha256
 
 def load_binary(binary):
-    filename = path.abspath(path.join(binary_dir, binary['sha256']))
+    filename = os.path.abspath(os.path.join(binary_dir, binary['sha256']))
 
     handle = tempfile.NamedTemporaryFile(delete=False)
     handle.write(binary['content'])
@@ -81,7 +81,7 @@ def cfg(binary_id):
             db.function.update(key, val, upsert=True)
             addrs.append(addr)
 
-    return addr
+    return addrs
 
 def _unflatten(binary, function):
     filename, proj = load_binary(binary)
@@ -95,8 +95,9 @@ def _unflatten(binary, function):
         control = unollvm.control.Control(proj, shape)
         ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_64)
         patch = unollvm.patch.Patch(proj, shape, control, ks)
-
-    return patch.patches
+        return patch.patches
+    else:
+        return {}
 
 @app.task
 def unflatten(binary_id, func_addr):
@@ -124,6 +125,7 @@ def unflatten(binary_id, func_addr):
         'patch': json.dumps(patches)
     }
     db.patch.update(key, val, upsert=True)
+    return patches
 
 
 if __name__ == '__main__':
