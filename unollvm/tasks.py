@@ -17,9 +17,14 @@ import unollvm
 
 from .celery import app
 
+logging.getLogger('angr.factory').setLevel(logging.WARN)
+logging.getLogger('angr.project').setLevel(logging.WARN)
+logging.getLogger('cle.loader').setLevel(logging.WARN)
+logging.getLogger('unollvm').setLevel(logging.WARN)
+
 db = pymongo.MongoClient('mongodb://localhost:27017', connect=False).unollvm
-log = logging.getLogger('unollvm')
-#logging.getLogger('unollvm').setLevel(logging.INFO)
+log = logging.getLogger('unollvm.tasks')
+log.setLevel(logging.INFO)
 
 binary_dir = '/tmp/uo/'
 
@@ -66,7 +71,10 @@ def cfg(binary_id):
 
     filename, proj = load_binary(binary)
 
+    log.info('Extract CFG binary {}'.format(binary_id[:7]))
     cfg = proj.analyses.CFGFast()
+    log.info('Extract CFG binary {} done'.format(binary_id[:7]))
+
     addrs = []
     for addr, func in cfg.functions.iteritems():
         if not (func.is_syscall or func.is_plt or func.is_simprocedure):
@@ -119,9 +127,14 @@ def unflatten(binary_id, func_addr=None, func_name=None):
     if not function:
         raise ValueError('Cannot find function 0x{:x} of binary {}'.format(func_addr, binary_id))
 
-    log.warn('Unflatten binary {} function {} ({})'.format(
+    log.info('Unflatten binary {} function {} ({})'.format(
         binary_id[:7], function['name'], hex(int(function['addr']))))
+
     patches = _unflatten(binary, function)
+
+    log.info('Unflatten binary {} function {} ({}) {}'.format(
+        binary_id[:7], function['name'], hex(int(function['addr'])),
+        'done' if len(patches) > 0 else 'not flattened'))
 
     key = {'binary': binary_id, 'addr': function['addr']}
     val = key.copy()
