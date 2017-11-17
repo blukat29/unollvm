@@ -70,15 +70,22 @@ class Patch(object):
         # Assume state variable is 4-byte integer type.
         return state.memory.load(self.control.swvar_addr, 4).reversed
 
+    def exec_insn(self, state):
+        try:
+            succ = state.step(num_inst=1)
+        except angr.errors.SimZeroDivisionException:
+            log.warn('Skipping instruction {} due to divide-by-zero'.format(state.regs.pc))
+            return state
+        assert len(succ.successors) == 1
+        return succ[0]
+
     def exec_insns(self, state, insn_addrs, on_insn):
         for addr in insn_addrs:
             if on_insn:
                 if not on_insn(state, addr):
                     break
             state.regs.pc = addr
-            succ = state.step(num_inst=1)
-            assert len(succ.successors) == 1
-            state = succ[0]
+            state = self.exec_insn(state)
         return state
 
     def exec_block(self, state, addr, on_insn=None):
