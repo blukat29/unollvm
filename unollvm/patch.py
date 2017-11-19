@@ -54,15 +54,8 @@ class Patch(object):
         return code
 
     def make_patch(self, addr, code):
-        if addr in self.patches:
-            old = self.patches[addr]
-            merged = [0]*max(len(old), len(code))
-            merged[:len(old)] = old
-            # Overwrite the patch
-            merged[:len(code)] = code
-            self.patches[addr] = merged
-        else:
-            self.patches[addr] = code
+        for n in range(len(code)):
+            self.patches[addr + n] = [code[n],]
 
     def disas(self, addr):
         if addr not in self.disas_cache:
@@ -225,11 +218,7 @@ class Patch(object):
         # If we sense that the switch variable is changed,
         curr_swvar = self.get_swvar(state)
         if not (orig_swvar == curr_swvar).is_true():
-            if sym_is_val(curr_swvar):
-                target = self.control.swmap[sym_val(curr_swvar)]
-                log.info('    Uncond {:x} -> {:x}'.format(case, target))
-                self.patch_uncond(addr, target)
-            elif len(self.cmov_info) == 1:
+            if len(self.cmov_info) == 1:
                 cmov_addr, f, t = self.cmov_info[0]
                 f_block = self.control.swmap[f]
                 t_block = self.control.swmap[t]
@@ -238,7 +227,10 @@ class Patch(object):
                 self.patch_cond(cmov_addr, t_block)
                 # Jump to false case otherwise.
                 self.patch_uncond(addr, f_block)
-                return
+            elif sym_is_val(curr_swvar):
+                target = self.control.swmap[sym_val(curr_swvar)]
+                log.info('    Uncond {:x} -> {:x}'.format(case, target))
+                self.patch_uncond(addr, target)
             else:
                 raise Exception('Cannot determine control transfer for case block {:x}'.format(case))
 
