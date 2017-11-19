@@ -33,13 +33,16 @@ def upload_binary(filename):
         content = f.read()
     sha256 = hashlib.sha256(content).hexdigest()
 
-    key = {'sha256': sha256}
-    val = {
-        'sha256': sha256,
-        'filename': filename,
-        'content': bson.binary.Binary(content),
-    }
-    db.binary.update(key, val, upsert=True)
+    binary = db.binary.find_one({'sha256': sha256})
+    if not binary:
+        key = {'sha256': sha256}
+        val = {
+            'sha256': sha256,
+            'filename': filename,
+            'content': bson.binary.Binary(content),
+            'cfg_done': False,
+        }
+        db.binary.update(key, val, upsert=True)
     return sha256
 
 def load_binary(binary):
@@ -69,6 +72,11 @@ def cfg(binary_id):
     if not binary:
         raise ValueError('Cannot find binary {}'.format(binary_id))
 
+    if binary['cfg_done']:
+        log.info('CFG for binary {} exists in DB.'.format(binary_id[:7]))
+        functions = db.function.find({'binary': binary_id})
+        return list(map(lambda x: int(x['addr']), functions))
+
     filename, proj = load_binary(binary)
 
     log.info('Extract CFG binary {}'.format(binary_id[:7]))
@@ -92,6 +100,7 @@ def cfg(binary_id):
             db.function.update(key, val, upsert=True)
             addrs.append(addr)
 
+    db.binary.update({'sha256': binary_id}, {'$set': {'cfg_done': True}})
     return addrs
 
 def _unflatten(binary, function):
