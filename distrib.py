@@ -1,12 +1,15 @@
 import argparse
 import gettext
+import json
 import sys
 
 import celery
+import pymongo
 
 import unollvm
 from unollvm import tasks
 from unollvm.celery import app
+from unollvm.util import patch_elf
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -37,15 +40,22 @@ if __name__ == '__main__':
     output = args.output.name
     args.output.close()
 
+    db = pymongo.MongoClient('mongodb://localhost:27017', connect=False).unollvm
+
     if args.all:
         h = tasks.upload_binary(input_)
         chain = celery.chain(
-                tasks.cfg.s(h),
-                tasks.unflatten_all.s(h)
+                tasks.cfg.si(h),
+                tasks.unflatten_all.si(h)
         )
         r = chain()
         chord_id = r.get()
-        r = app.AsyncResult(chord_id).get()
+        app.AsyncResult(chord_id).get()
+
+        patches = {}
+        for doc in db.patch.find({'binary': h}):
+            patches.update(json.loads(doc['patch']))
+        patch_elf(input_, output, patches, 0)
 
     else:
         h = tasks.upload_binary(input_)
@@ -60,6 +70,13 @@ if __name__ == '__main__':
                 )
         )
         r = chain()
-        addr_res, name_res = r.get()
-        r = addr_res + name_res
-        print r
+        r = r.get()
+
+        patches = {}
+        for h, addr in addr_args:
+            doc = db.patch.find_one({'binary': h, 'addr': addr})
+            patches.update(json.loads(doc['patch']))
+        for h, name in name_args:
+            doc = db.patch.find_one({'binary': h, 'name': name})
+            patches.update(json.loads(doc['patch']))
+        patch_elf(input_, output, patches, 0)

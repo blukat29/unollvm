@@ -74,8 +74,7 @@ def cfg(binary_id):
 
     if binary['cfg_done']:
         log.info('CFG for binary {} exists in DB.'.format(binary_id[:7]))
-        functions = db.function.find({'binary': binary_id})
-        return list(map(lambda x: int(x['addr']), functions))
+        return
 
     filename, proj = load_binary(binary)
 
@@ -101,7 +100,6 @@ def cfg(binary_id):
             addrs.append(addr)
 
     db.binary.update({'sha256': binary_id}, {'$set': {'cfg_done': True}})
-    return addrs
 
 def _unflatten(binary, function):
     filename, proj = load_binary(binary)
@@ -146,10 +144,13 @@ def unflatten(binary_id, func_addr=None, func_name=None):
         'done' if len(patches) > 0 else 'not flattened'))
 
     key = {'binary': binary_id, 'addr': function['addr']}
-    val = key.copy()
-    val.update({'patch': json.dumps(patches)})
+    val = {
+        'binary': binary_id,
+        'addr': function['addr'],
+        'name': function['name'],
+        'patch': json.dumps(patches)
+    }
     db.patch.update(key, val, upsert=True)
-    return patches
 
 @app.task
 def unflatten_addr(binary_id, func_addr):
@@ -164,7 +165,9 @@ def collect_patches(patches):
     return patches
 
 @app.task
-def unflatten_all(addrs, binary_id):
+def unflatten_all(binary_id):
+    functions = db.function.find({'binary': binary_id})
+    addrs = list(map(lambda x: int(x['addr']), functions))
     jobs = (unflatten_addr.s(binary_id, addr) for addr in addrs)
     chord = celery.chord(jobs)(collect_patches.s())
     return chord.id
