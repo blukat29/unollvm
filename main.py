@@ -25,6 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--all', action='store_true',
             help='Patch all functions in the file')
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-f', '--logfile', type=str)
 
     args = parser.parse_args()
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     output = args.output.name
     args.output.close()
 
-    do = unollvm.Deobfuscator(input_, verbose=args.verbose)
+    do = unollvm.Deobfuscator(input_, verbose=args.verbose, logfile=args.logfile)
     if args.all:
         do.analyze_all()
     else:

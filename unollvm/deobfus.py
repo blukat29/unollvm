@@ -13,14 +13,17 @@ log = logging.getLogger('unollvm')
 
 class Deobfuscator(object):
 
-    def __init__(self, filename, verbose=False, logfile=sys.stdout):
+    def __init__(self, filename, verbose=False, logfile=None):
         self.filename = filename
         self.verbose = verbose
-        self.logfile = logfile
         if self.verbose:
             logging.getLogger('unollvm').setLevel(logging.INFO)
         else:
             logging.getLogger('unollvm').setLevel(logging.WARN)
+        if logfile:
+            handler = logging.FileHandler(logfile)
+            handler.setFormatter(logging.Formatter('%(levelname)-7s | %(asctime)-23s | %(name)-8s | %(message)s'))
+            log.addHandler(handler)
 
         load_options = {'auto_load_libs': False}
         self.proj = angr.Project(filename, load_options=load_options)
@@ -36,7 +39,9 @@ class Deobfuscator(object):
 
     def cfg(self):
         if self.cfg_cache is None:
-            self.cfg_cache = self.proj.analyses.CFGFast()
+            log.info('Starting CFG analysis')
+            self.cfg_cache = self.proj.analyses.CFGFast(show_progressbar=True)
+            log.info('Finished CFG analysis')
         return self.cfg_cache
 
     def analyze_func(self, func):
